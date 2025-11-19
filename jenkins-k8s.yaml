@@ -1,29 +1,32 @@
-# PersistentVolume statico con hostPath (sul nodo dove gira il pod)
-apiVersion: v1
-kind: PersistentVolume
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: jenkins-pv
-spec:
-  capacity:
-    storage: 50Gi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: ""          # importante: vuoto per hostPath statico
-  hostPath:
-    path: "/mnt/jenkins_home"   # <-- cartella che creerai tu
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: jenkins-home
+  name: jenkins
   namespace: jenkins
 spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: ""          # deve essere vuoto
-  resources:
-    requests:
-      storage: 50Gi
-  volumeName: jenkins-pv        # binding statico al PV sopra
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      containers:
+      - name: jenkins
+        image: tuoutente/jenkins-cli-terraform:k8s
+        ports:
+        - containerPort: 8080
+        - containerPort: 50000
+        volumeMounts:
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+      volumes:
+      - name: jenkins-home
+        hostPath:
+          path: /mnt/jenkins_home
+          type: DirectoryOrCreate
