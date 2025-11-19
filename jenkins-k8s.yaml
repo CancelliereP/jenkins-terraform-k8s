@@ -1,8 +1,18 @@
-# jenkins-k8s.yaml
+# PersistentVolume statico con hostPath (sul nodo dove gira il pod)
 apiVersion: v1
-kind: Namespace
+kind: PersistentVolume
 metadata:
-  name: jenkins
+  name: jenkins-pv
+spec:
+  capacity:
+    storage: 50Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""          # importante: vuoto per hostPath statico
+  hostPath:
+    path: "/mnt/jenkins_home"   # <-- cartella che creerai tu
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -12,58 +22,8 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: ""          # deve essere vuoto
   resources:
     requests:
-      storage: 50Gi   # quanto spazio vuoi per job, plugin, ecc.
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: jenkins
-  namespace: jenkins
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: jenkins
-  template:
-    metadata:
-      labels:
-        app: jenkins
-    spec:
-      securityContext:
-        fsGroup: 1000
-        runAsUser: 1000
-      containers:
-      - name: jenkins
-        image: tuoutente/jenkins-cli-terraform:k8s   # la tua immagine
-        ports:
-        - containerPort: 8080
-        - containerPort: 50000
-        volumeMounts:
-        - name: jenkins-home
-          mountPath: /var/jenkins_home
-        env:
-        - name: JAVA_OPTS
-          value: "-Dhudson.slaves.NodeProvisioner.initialDelay=0 -Dhudson.slaves.NodeProvisioner.MARGIN=50"
-      volumes:
-      - name: jenkins-home
-        persistentVolumeClaim:
-          claimName: jenkins-home
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: jenkins
-  namespace: jenkins
-spec:
-  type: LoadBalancer   # o NodePort se non hai LB esterno
-  ports:
-  - name: http
-    port: 8080
-    targetPort: 8080
-  - name: jnlp
-    port: 50000
-    targetPort: 50000
-  selector:
-    app: jenkins
+      storage: 50Gi
+  volumeName: jenkins-pv        # binding statico al PV sopra
