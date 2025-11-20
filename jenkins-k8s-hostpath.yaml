@@ -33,7 +33,7 @@ spec:
       serviceAccountName: jenkins
       containers:
       - name: jenkins
-        image: jenkins-cli-terraform:latest   # <-- Immagine docker creata con Dockerfile
+        image: jenkins-cli-terraform:k8s   # <-- CAMBIA con la tua immagine
         imagePullPolicy: Never                       # o IfNotPresent se è locale
         ports:
         - containerPort: 8080
