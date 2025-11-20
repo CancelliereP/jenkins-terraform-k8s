@@ -1,0 +1,74 @@
+# jenkins-k8s-hostpath.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jenkins
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: jenkins
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: jenkins
+  labels:
+    app: jenkins
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+    spec:
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      serviceAccountName: jenkins
+      containers:
+      - name: jenkins
+        image: jenkins-cli-terraform:latest   # <-- Immagine docker creata con Dockerfile
+        imagePullPolicy: Never                       # o IfNotPresent se è locale
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 50000
+          name: jnlp
+        volumeMounts:
+        - name: jenkins-home
+          mountPath: /var/jenkins_home
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "3Gi"
+            cpu: "2000m"
+      volumes:
+      - name: jenkins-home
+        hostPath:
+          path: /mnt/jenkins_home          # <-- stessa cartella su tutti i nodi
+          type: DirectoryOrCreate          # crea automaticamente se non esiste
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins
+  namespace: jenkins
+spec:
+  type: LoadBalancer          # su cloud diventa pubblico, su bare-metal usa NodePort se preferisci
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  - name: jnlp
+    port: 50000
+    targetPort: 50000
+  selector:
+    app: jenkins
